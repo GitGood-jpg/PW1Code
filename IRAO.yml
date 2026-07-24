@@ -1,0 +1,308 @@
+# Pokémon White 1.
+#
+# W1 is NOT a regular shift of W2: the tables live in different places, so
+# a per-address map is needed (derived from the literals in overlay 93).
+
+Gamecode: IRAO
+Name: Pokémon White
+
+# SELECTIVE strip of symbol names (keeps the exports, links by hash):
+# BattleUpgrade ~88KB instead of ~100KB, so the resident set fits
+# in W1's 141KB heap in DS mode.
+StripNames: selective
+
+# Applied safestack hooks: 24/24, COMPLETE battle engine.
+# Verified one by one via bisection; every name here has been tested at runtime.
+SafestackKeep:
+  - ServerEvent_GetTargetDefenses
+  - BattleSideStatus_GetCount
+  - BattleSideStatus_GetCountFromBattleEventItem
+  - BattleSideStatus_Init
+  - BattleSideStatus_IsEffectActive
+  - BattleSideStatus_TurnCheck
+  - PosEffectEvent_AddItem
+  - SideEffectEvent_AddItem_Core
+  - SideEffectEvent_RemoveItem
+  - BattleViewCmd_MoveEffect_Start
+  - CommonContactStatusAbility
+  - CommonPinchBerry
+  - CommonResistBerry
+  - HandlerMoldBreakerSkipCheck
+  - IsUnselectableMove
+  - ServerControl_AddConditionCheckFail
+  - ServerControl_SubstituteExclude
+  - ServerDisplay_MoveEffectivenessMessage
+  - ServerEvent_CheckDamageEffectiveness
+  - ServerEvent_CheckStatStageChangeSuccess
+  - ServerFlow_CheckMoveAvoid
+  - flowsub_CheckNoEffect_Protect
+  - ServerEvent_CalcDamage
+  - AddExpAndEVs
+
+# Per-address map of the hardcoded values.
+#
+# WATCH OUT for the base/END pairs: the compiler generates POINTER loops
+#   for (p = base; p != base + count*8; p += 8)
+# where the END value is a SEPARATE 32-bit literal. If you remap the base but
+# not the END, the pointer (new base, high) never reaches the END (old, low)
+# → runaway loop → overruns into the adjacent tables → crash.
+# Every base below MUST have its END.
+HardcodedMap:
+  - From: 0x021DA0F4
+    To:   0x021F3050
+    Note: vanilla move-events table (literal in MoveEvent_AddItem @0x21e0368)
+  - From: 0x021DA904
+    To:   0x021F3860
+    Note: moves END (base + 258*8)
+  - From: 0x021D7F38
+    To:   0x021F0E94
+    Note: vanilla ability-events table (literal in AbilityEvent_AddItem @0x21d8508)
+  - From: 0x021D8428
+    To:   0x021F1384
+    Note: abilities END (base + 158*8)
+  - From: 0x021D8F68
+    To:   0x021F1EC4
+    Note: vanilla item-events table (literal in ItemEvent_AddItemCore @0x21dce1c)
+  - From: 0x021D94C8
+    To:   0x021F2424
+    Note: items END (base + 172*8)
+
+# Addresses that the compiler GENERATES (not present in the sources, thus
+# invisible to the scanner) but that must be translated anyway: they are the ENDs above.
+DerivedAddresses:
+  - 0x021DA904
+  - 0x021D8428
+  - 0x021D94C8
+
+# Translation of the arm9 pointers written as a VALUE inside already-compiled
+# modules: the NitroKernel.dll blob (built for White 2 and reused here) and the
+# literals of the PMC code. They don't go through the symbols nor the
+# relocations, so they are substituted by value in the already-linked module.
+#
+# W1 is not a shift of W2 → per-symbol map. The value is the W1 one with ITS OWN
+# mode bit, not that of the entry: otherwise `blx` would enter in the wrong
+# mode and crash.
+#
+# ★★ WATCH OUT — today this map NEVER FIRES (verified 19 Jul).
+# The `NitroKernel.dll` that the template ships in Assets/patches/ **already
+# contains W1 addresses**, not W2: its 14 symbols in the game range are
+# GFL_HeapFree 0x02007AC8, GFL_HeapAllocate 0x0203074C, finit 0x020788C4,
+# romfs_* 0x02078A98..0x02078C30, memcpy 0x0209235C, memset 0x020923C8,
+# vsnprintf 0x020944E4, strlen 0x02094794, strcpy 0x020947B0, __aeabi_lmul
+# 0x0209C06C. None of these is a key below, so the translation
+# finds nothing to do. Verify it with:
+#     cargo run --example rpm_symbols -- <NitroKernel.dll> DLXF
+# The map remains as a SAFETY NET for the day one starts again from a
+# pristine W2 blob — but it must be kept correct, because that day it would bite.
+#
+# ★ CORRECTED ERROR (19 Jul): the last entry said `0x0203a278 -> 0x0203074c`
+# with note "GFL_HeapAllocate". In W2 however 0x0203a278 is **GFL_HeapFree**
+# (GFL_HeapAllocate is at 0x0203a228), while 0x0203074C in W1 is
+# GFL_HeapAllocate. That is, the entry sent the FREEs into the ALLOC. Inert
+# so far, but on a pristine blob it would have corrupted the heap. Two independent
+# sources agree: the Ghidra dump of W2 (esdb/w2arm9_funcs) and the symbol table of
+# the already-translated blob.
+#
+# Deliberately not translated: memcpy/memset/strlen/strcpy/vsnprintf/__aeabi_lmul.
+# The addresses are known (above), but a previous session verified that
+# translating them breaks the boot: the problem is the calling convention (bl/blx),
+# which patching a single literal does not fix. The clean way is to recompile
+# NitroKernel from source. `GFL_HeapResize` and `clock` are not needed at all: the
+# blob does not reference them (they are not among the 14 symbols).
+Arm9LiteralMap:
+  - From: 0x02070ca8
+    To:   0x020788c4
+    Note: finit
+  - From: 0x02070de0
+    To:   0x02078a98
+    Note: romfs_fclose
+  - From: 0x02070e20
+    To:   0x02078b04
+    Note: romfs_ftell
+  - From: 0x02070e54
+    To:   0x02078b5c
+    Note: romfs_fseek
+  - From: 0x02070e6c
+    To:   0x02078b88
+    Note: romfs_fread
+  - From: 0x02070ecc
+    To:   0x02078c30
+    Note: romfs_fopen
+  - From: 0x0203a278
+    To:   0x02007ac8
+    Note: GFL_HeapFree (was mistakenly mapped onto the ALLOC — see above)
+  - From: 0x0203a228
+    To:   0x0203074c
+    Note: GFL_HeapAllocate
+
+# ============================================================================
+# PMC code-injection injection.
+#
+# The PMC.rpm is built on White 2: every address it contains inside is
+# a W2 one and must be re-pointed to the W1 equivalent. In W1 the arm9 is
+# REWRITTEN (the hook functions are ARM, not thumb like W2/B2), so it's not a
+# shift: the sites were derived by reverse engineering.
+# ============================================================================
+
+# Offset to ADD to maxOverlayBase to mount the PMC overlay.
+# In W1 the FS uses the top of the overlay region (0x2213D40 = end of overlay
+# 0-236) as the FAT/FNT buffer (~0x2750 for ~682 files). Mounting the PMC exactly
+# there gets it clobbered by the buffer during FS operations -> garbage -> crash.
+# We move it 0x4000 ABOVE the buffer (it stays below the region-0 heap at 0x023E0000).
+# (B2/W2: 0 - there the FS buffer is not at maxOverlayBase.)
+OverlayBaseExtra: 0x4000
+
+# Hook sites: address baked into the PMC (W2) -> W1 equivalent.
+Arm9HookRemap:
+  - From: 0x0207B41C
+    To:   0x0208675C
+    Note: >
+      AdjustHeapStart. In W1 the heap-start literal (= maxOverlayBase
+      0x02213D40, the user arena starts right AFTER the overlays) is at 0x0208675C,
+      verified by layout: in W2 the sequence is [heap-start, +8=0x0d000000,
+      +0xC=0x02400060] @0x0207B41C, in W1 identical @0x0208675C. The old
+      target 0x02086690 was the "region-0" literal (0x023E0000, end of RAM
+      DSi-legacy): patching it did NOT move the arena, which grew from 0x2213D40
+      INTO the PMC overlay (0x2217D40), corrupting its code after the movie.
+      This was bug #7.
+  - From: 0x0203CEAE
+    To:   0x02034B94
+    Note: GFL_OvlLoad -> bl sys_load_overlay (in W1 it's ARM)
+  - From: 0x0203CDEA
+    To:   0x02034A68
+    Note: GFL_OvlEntryUnload -> bl sys_unload_overlay (in W1 it's ARM)
+  - From: 0x02071080
+    To:   0x02078EC0
+    Note: >
+      UncapOverlayMaximum. In W1 sys_read_overlay_header (0x2078D4C) has the
+      "normal vs DSi-exclusive overlays" threshold in the literal @0x02078EC0 = 237
+      (= W1 overlay count). The new PMC overlay (id 237) would fall into the DSi
+      branch -> on DS rejected (read_header returns 0, does not load). Writing
+      0x7FFFFFFF there makes 237 "normal" again and it passes. In W2 the same literal is
+      0x158 = 344.
+
+# Sites whose hook point in W1 is in ARM: a BLX ARM to the PMC handler is
+# needed (which in the overlay is thumb) instead of the default thumb BL.
+Arm9ArmBlxSites:
+  - 0x0203CDEA
+  - 0x0203CEAE
+
+# Targets of the `bl` to arm9 INTERNAL to the copied FULL_COPY blocks (the boot
+# stub calls 2 game functions). They were resolved to the W2 addresses when the
+# PMC was built and don't go through the reloc-hooks, so they must be
+# re-encoded. The PARITY of the value picks the instruction: odd = thumb
+# (BL), even = ARM (BLX).
+Arm9StubCallRemap:
+  - From: 0x020712DC
+    To:   0x0207927C
+    Note: sys_load_overlay (in W1 it's ARM -> BLX)
+  - From: 0x020054B8
+    To:   0x02075CC4
+    Note: >
+      Bug #5. The 1st call of the boot stub (in W2/B2 it's GFLAppInit) for W1 must be
+      the FS-init 0x2075CC4 (ARM -> BLX): at main+6 the FS overlay-context is not
+      yet ready for the NEW overlay (the "early" FS-init does not include id
+      237). Calling 0x2075CC4 right before sys_load_overlay, read_header(237)
+      succeeds and the PMC overlay mounts. CONFIRMED: the ROM boots.
+
+# Direct byte patches on the arm9, applied last.
+Arm9BytePatches:
+  - At: 0x02078D8F
+    Value: 0xEA
+    Note: >
+      Bug #7. sys_read_overlay_header (0x2078d4c) has two paths to obtain
+      the y9: (a) primary via descriptor [0x2150d48] (pointer to the y9 in RAM)
+      and (b) fallback that re-reads it from the FS. The switch is `ldr r0,[r9]; cmp r0,#0;
+      beq fallback` @0x2078d8c. At boot the descriptor is NULL -> fallback
+      (correct). But when BattleUpgrade loads overlay 48 (after the movie)
+      the descriptor is non-null and garbage in the injected ROM (the init that populates it
+      does not run on our path) -> garbage header (OvlID=0xffffffff,
+      MountAddress=0x92) -> sys_mount_overlay crashes. Forcing `beq`->`b`
+      (unconditional) it ALWAYS takes the FS-context fallback, always correct.
+      Does not regress the boot (the PMC overlay 237 already took the fallback).
+
+# ============================================================================
+# PMC heap in DSi mode.
+#
+# It must be applied to the PMC.rpm BEFORE injection, so the PMC overlay (and thus the
+# DSi digest) already contains the constants: patching the final ROM downstream
+# would break the digest -> white screen in DSi.
+#
+# `System::CreateSystemAllocator` does:
+#     availSize     = END - max(START, arm7End)
+#     allocatedSize = min(availSize, CAP)
+#     allocatedPtr  = END - allocatedSize        <- anchored HIGH, grows down
+#
+# With the original DSi branch (START=0x022050C0, END=0x023E0000) the constraint is NOT the
+# CAP but the ARM7, which in W1 lives in main RAM at 0x02380000..0x023A8F84
+# (measured at runtime with GDB): the clamp raises START to arm7End and only
+# 0x023E0000-0x023A8F84 = 220KB remains. Raising the CAP beyond 220KB does nothing: that's
+# how the false "1MB heap" was born.
+#
+# Below the ARM7 there is instead a truly free gap: the game overlays
+# end at 0x02213D40 and the injected PMC overlay at 0x0221AD40, so
+# 0x0221AD40..0x02380000 = 1.37MB is not used by anyone. Verified at runtime
+# in DSi: os_MemRegionStarts/Ends = 0x02BEC6D0/0x02F80000, i.e. the game's arena
+# lives above 0x02400000 (extended RAM) and the low 4MB contain only code.
+# Moving the window in there, the CAP bites again and the heap becomes real:
+#     START 0x022050C0 -> 0x02220000   (above the PMC overlay)
+#     END   0x023E0000 -> 0x02380000   (= start of ARM7, so the clamp does not bite)
+#     CAP   160KB      -> 1536KB       (deliberately ABOVE availSize: what bites
+#                                       must be the measured window, not a
+#                                       magic number)
+#     -> availSize = allocatedSize = 1408KB @ 0x02220000..0x02380000
+#
+# Margin below the heap base: 0x02220000 - 0x0221AD40 = 21KB. Tight but
+# verified: the highest of the 232 overlays in main RAM reaches 0x02213D40
+# and the PMC overlay ends at 0x0221AD40, below there is nothing else. If more
+# margin were needed just lower the CAP again (`movs #128; lsls #13` = 1MB -> base
+# 0x02280000, 405KB of margin).
+#
+# DS mode stays UNCHANGED: there availSize (141KB) < CAP, so the CAP changes
+# nothing and the DS branch uses the game's os_MemRegionStarts/Ends.
+#
+# `Expect` is not decorative: if the PMC changes, the patch MUST fail instead of
+# writing to offsets that no longer mean that (that's how a disabled
+# feature that nobody notices is born).
+PmcHeapPatches:
+  - At: 0x2FA
+    Expect: E5E7
+    Write:  EB
+    Note: >
+      Skips the ARM7 CLAMP in the DSi branch, and ONLY there. The common clamp does
+      realMemoryStart = max(START, arm7End) and it's right for the ORIGINAL
+      window, which contains the ARM7. Ours is entirely BELOW the ARM7, so the
+      clamp would raise realMemoryStart ABOVE our END -> availSize =
+      END - realMemoryStart goes into unsigned underflow (~4GB) -> the min() returns
+      always the CAP -> base = END - CAP instead of START. This is exactly how
+      the first "1MB" version worked by accident: END-1MB = 0x02280000 fell
+      above the PMC overlay. With a bigger CAP the base descended BELOW the
+      PMC overlay and wrote over it. The DSi branch (0x2f4) jumps to 0x2c8 = inside the
+      clamp; I make it jump to 0x2d4 = `movs r2,r0`, without clamp. The DS branch is not
+      touched: it reaches 0x2c8 by fall-through from 0x2c6, and 0x2fa is the ONLY
+      branch to 0x2c8.
+  - At: 0x2D6
+    Expect: A0
+    Write:  "18"
+    Note: CAP, first half - `movs r0,#160` -> `movs r0,#24`
+  - At: 0x2DA
+    Expect: "8002"
+    Write:  "0004"
+    Note: CAP, second half - `lsls r0,#10` (160KB) -> `lsls r0,#16` (1536KB)
+  - At: 0x310
+    Expect: C0502002
+    Write:  00002202
+    Note: VALUE of g_DSiModeLegacyRAMStart (inlined: the static is only READ)
+  - At: 0x1960
+    Expect: 00003E02
+    Write:  00003802
+    Note: VALUE of g_DSiModeLegacyRAMEnd (in .data: the static is WRITTEN)
+
+# Symbols searched for and PROVEN absent in White 1 (symbol hunt of 20 Jul:
+# 15 searched, 13 found, these 2 do not exist in this game). The hook that
+# points them is skipped, and it's the correct outcome: declaring them here prevents the build
+# from repeating them as a problem on every run. They live in Patches/Base/QoLItems.cpp,
+# which stays shared with W2/B2 where they instead exist.
+AbsentSymbols:
+  - PML_ItemGetType
+  - PassPower_ApplyExploringChance

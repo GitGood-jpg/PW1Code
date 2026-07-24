@@ -1,0 +1,50 @@
+#include "settings.h"
+#ifdef EXPAND_MOVES
+
+#include "BattleEngine.h"
+#include "server_flow.h"
+
+// W1 FIX (crash all'uso di Fell Stinger / move 565, prima dell'animazione):
+// il percorso "Moves/FellStinger" via LoadDll → k::dll::LoadLibrary corrompe la memoria su W1
+// (il buffer della Moves-DLL non viene riempito correttamente → salto/scrittura garbage → crash
+// variabile che atterra nel modulo caricato di turno). Confermato su kernel slim E originale →
+// non e' il kernel, e' il loader DLL-Moves. Come le entry con dllName=nullptr (ShadowForce,
+// SpiderWeb, definite dentro BattleUpgrade), internalizziamo Fell Stinger: la sua EventAdd/Handler
+// vivono in BattleUpgrade.dll, il table entry usa nullptr → nessun LoadDll → nessuna corruzione.
+// La versione libreria (Libraries/Moves/FellStinger.cpp) e' disabilitata (.disabled).
+
+extern "C" void HandlerFellStinger(BattleEventItem* item, ServerFlow* serverFlow, u32 pokemonSlot, u32* work) {
+    if (pokemonSlot == BattleEventVar_GetValue(VAR_ATTACKING_MON)) {
+        u32 targetCount = BattleEventVar_GetValue(VAR_TARGET_COUNT);
+        for (u32 idx = 0; idx < targetCount; ++idx)
+        {
+            u32 targetSlot = BattleEventVar_GetValue((BattleEventVar)(VAR_TARGET_MON_ID + idx));
+            BattleMon* targetMon = Handler_GetBattleMon(serverFlow, targetSlot);
+            if (BattleMon_IsFainted(targetMon))
+            {
+                HandlerParam_ChangeStatStage* statChange;
+                statChange = (HandlerParam_ChangeStatStage*)BattleHandler_PushWork(serverFlow, EFFECT_CHANGE_STAT_STAGE, pokemonSlot);
+                statChange->pokeCount = 1;
+                statChange->pokeID[0] = pokemonSlot;
+                statChange->stat = STATSTAGE_ATTACK;
+#if GEN6_FELL_STINGER
+                statChange->volume = 2;
+#else
+                statChange->volume = 3;
+#endif
+                BattleHandler_PopWork(serverFlow, statChange);
+
+                return;
+            }
+        }
+    }
+}
+static BattleEventHandlerTableEntry FellStingerHandlersInternal[]{
+    {EVENT_DAMAGE_PROCESSING_END_HIT_REAL, HandlerFellStinger},
+};
+extern "C" BattleEventHandlerTableEntry* EventAddFellStinger(u32* handlerAmount) {
+    *handlerAmount = ARRAY_COUNT(FellStingerHandlersInternal);
+    return FellStingerHandlersInternal;
+}
+
+#endif // EXPAND_MOVES
