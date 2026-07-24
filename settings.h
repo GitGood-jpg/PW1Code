@@ -2,7 +2,7 @@
 #define __FEATURE_SETTINGS_H	
 
 // Set the cap with game variable LVL_CAP_VAR 16415; default 100 = no cap.
-// On W1 the in-battle cap reads gameData from btlSetup+0x58 (W1 passes it as a parameter, not globally).
+// On W1 the in-battle cap reads gameData from btlSetup+0x58, where BtlSetup_LoadGameData stores it.
 #define ADD_LEVEL_CAP 1
 	#define RARE_CANDY_IGNORE_LVL_CAP 1
 	#define DAY_CARE_LVL_CAP 0
