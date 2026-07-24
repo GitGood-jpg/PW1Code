@@ -1,13 +1,8 @@
 #ifndef __FEATURE_SETTINGS_H
 #define __FEATURE_SETTINGS_H	
 
-// W1: GetLvlCap() used GAME_DATA = *(g_GameBeaconSys+4), the B2/W2 path → garbage in White 1 → ABORT.
-// The global itself does exist on W1 (g_GameBeaconSys = 0x2146960, referenced all over arm9), but the W2
-// access path doesn't hold: +4 there isn't a gameData pointer. The battle-setup chain threads gameData as
-// a parameter instead, and BtlSetup_LoadGameData stores it at btlSetup+0x58 (disasm-confirmed:
-// str r4,[r5,#0x58]). AddExpAndEVs reads gameData from there (var LVL_CAP_VAR 16415; default 100 = no cap).
-// The GAME_DATA macro itself is fixed for W1 in defs.h (offset 0 instead of +4), so GetLvlCap works
-// outside battle too — the level-cap check on the infinite Rare Candy was reading garbage before.
+// Set the cap with game variable LVL_CAP_VAR 16415; default 100 = no cap.
+// On W1 the in-battle cap reads gameData from btlSetup+0x58 (W1 passes it as a parameter, not globally).
 #define ADD_LEVEL_CAP 1
 	#define RARE_CANDY_IGNORE_LVL_CAP 1
 	#define DAY_CARE_LVL_CAP 0
