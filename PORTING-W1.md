@@ -42,27 +42,25 @@ bitten a few times and wrote down exactly why each value is what it is. The shor
 - `OverlayBaseExtra: 0x4000` — W1 parks its FAT/FNT buffer right at maxOverlayBase, which is exactly where
   the PMC overlay would mount, so it gets clobbered during FS operations. Bumping it 0x4000 up gets it
   clear of the buffer and still under the heap region.
-- `PmcHeapPatches` — the DSi heap. Apply these to the PMC.rpm *before* injection, not to the final ROM —
-  patching the ROM afterwards breaks the DSi digest and you get a white screen. They move the heap window
-  to 0x02220000..0x02380000 (1408 KB) and skip the ARM7 clamp on the DSi branch only. Each patch has an
-  `Expect` guard so it fails loudly if your PMC layout differs from mine instead of writing to the wrong
-  offset.
+- `PmcHeapPatches` — the heap. Apply these to the PMC.rpm *before* injection, not to the final ROM —
+  patching the ROM afterwards breaks the digest and you get a white screen. They move the heap window to
+  0x02220000..0x02380000 and skip the ARM7 clamp. Each patch has an `Expect` guard so it fails loudly if
+  your PMC layout differs from mine instead of writing to the wrong offset.
 
 There's also `HardcodedMap` (the vanilla move/ability/item event tables — mind the base/END pairs, if you
 remap a base without its END you get a runaway loop into the next table), `SafestackKeep` (the 24 hooks
 kept for the full engine), `StripNames: selective` (keeps the resident set inside W1's 141 KB DS heap),
 and `AbsentSymbols` (two symbols that genuinely don't exist in W1, so their hook is skipped on purpose).
 
-## DS vs DSi
+## Heap
 
-DSi mode gets the full 1408 KB heap window (the DSi frees the lower 4 MB), so the whole battle engine plus
-Mega Evolution plus new content fits with room to spare. DS mode boots and plays too — modules stay
-resident so the second battle doesn't run the heap dry — but there's only ~141 KB total and roughly 20 KB
-left for battle content, so adding new moves or Mega on top of a DS build will overrun it and crash.
-Build for DSi if you want the new content.
+White 1's heap is smaller than White 2's, so there's less room for battle content. The engine and the
+standard feature set fit fine; piling a lot of new content (new moves, Mega, and the like) on top of
+everything can overrun it. The `PmcHeapPatches` in `IRAO.yml` open the heap up to the largest window W1
+allows, and the patch modules stay resident so the memory isn't re-fragmented between battles.
 
 ## Building it
 
 Open the White 1 (IRAO) ROM in CTRMap with the CTRMapV plugin so it generates `vfs/`/`base/`, install
 your PMC with the `IRAO.yml` constants baked in, drop these sources into the project, set what you want in
-`settings.h`, and build with PW2Builder. Play it in DSi mode for the full set.
+`settings.h`, and build with PW2Builder.
