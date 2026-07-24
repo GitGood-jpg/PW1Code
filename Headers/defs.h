@@ -38,7 +38,11 @@ struct SWAN_ALIGNED(2) StrBuf
 extern "C" u32 fixed_round(u32 value, u32 ratio);
 
 extern u32 g_GameBeaconSys;
-#define GAME_DATA *(GameData**)(g_GameBeaconSys + 4)
+// W1: gameData sits at offset 0 of the beacon-sys, NOT at +4 like on B2/W2. With +4 you read the first
+// word of an inline sub-struct as if it were a pointer → garbage (this is what made GetLvlCap abort).
+// Verified against the W1 arm9: 33 sites use the global, none of them reads a pointer at +4, and
+// GameData_GetSaveControl is called with *(beaconSys+0) — see 0x20271b2.
+#define GAME_DATA *(GameData**)(g_GameBeaconSys)
 
 struct PassPowerState
 {
