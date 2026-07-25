@@ -38,7 +38,8 @@ struct SWAN_ALIGNED(2) StrBuf
 extern "C" u32 fixed_round(u32 value, u32 ratio);
 
 extern u32 g_GameBeaconSys;
-#define GAME_DATA *(GameData**)(g_GameBeaconSys + 4)
+// W1: gameData is at offset 0 of the beacon-sys (B2/W2 have it at +4).
+#define GAME_DATA *(GameData**)(g_GameBeaconSys)
 
 struct PassPowerState
 {
