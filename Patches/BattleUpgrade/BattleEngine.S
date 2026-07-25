@@ -240,8 +240,8 @@ FULL_COPY_167_0x21D74E0:
 #endif // GEN6_CRIT
 
 @ ============================================================================
-@ ★★ Jul 12 — the bug#7 fix (arm9 0x02078D8F: beq→b) has been MOVED BACK to
-@ PmcInject.arm9BytePatches and must NOT return here. It's not a matter of style:
+@ ★★ The arm9 patch at 0x02078D8F (beq→b) belongs in PmcInject.arm9BytePatches
+@ and must NOT come back here. It's not a matter of style:
 @
 @ PMC marks RESIDENT (= never unloaded) any module that links the ARM9:
 @     IsOvlIDResident(id) := id == OVLID_ARM9_RESERVE || id == OVLID_ARM7_RESERVE

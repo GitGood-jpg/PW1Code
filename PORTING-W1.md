@@ -36,7 +36,7 @@ bitten a few times and wrote down exactly why each value is what it is. The shor
   GFL_OvlEntryUnload, UncapOverlayMaximum. In W1 the arm9 hooks are ARM, so two of them (GFL_OvlLoad /
   GFL_OvlEntryUnload, listed in `Arm9ArmBlxSites`) need a BLX into the Thumb handler instead of a BL.
 - `Arm9StubCallRemap` + `Arm9BytePatches` — the boot stub calls and the one byte patch at 0x02078D8F.
-  That byte patch is bug #7: it forces sys_read_overlay_header down the FS-context fallback, otherwise the
+  That byte patch forces sys_read_overlay_header down the FS-context fallback, otherwise the
   overlay header comes back as garbage after the intro movie and the game crashes when BattleUpgrade loads
   its overlay.
 - `OverlayBaseExtra: 0x4000` — W1 parks its FAT/FNT buffer right at maxOverlayBase, which is exactly where
@@ -59,8 +59,3 @@ standard feature set fit fine; piling a lot of new content (new moves, Mega, and
 everything can overrun it. The `PmcHeapPatches` in `IRAO.yml` open the heap up to the largest window W1
 allows, and the patch modules stay resident so the memory isn't re-fragmented between battles.
 
-## Building it
-
-Open the White 1 (IRAO) ROM in CTRMap with the CTRMapV plugin so it generates `vfs/`/`base/`, install
-your PMC with the `IRAO.yml` constants baked in, drop these sources into the project, set what you want in
-`settings.h`, and build with PW2Builder.

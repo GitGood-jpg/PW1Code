@@ -164,7 +164,6 @@ Arm9HookRemap:
       target 0x02086690 was the "region-0" literal (0x023E0000, end of RAM
       DSi-legacy): patching it did NOT move the arena, which grew from 0x2213D40
       INTO the PMC overlay (0x2217D40), corrupting its code after the movie.
-      This was bug #7.
   - From: 0x0203CEAE
     To:   0x02034B94
     Note: GFL_OvlLoad -> bl sys_load_overlay (in W1 it's ARM)

@@ -1899,8 +1899,8 @@ extern "C" void THUMB_BRANCH_BattleField_InitCore(BattleFieldExt * battleField, 
 
 // Allocates the memory for the Extended BattleField struct
 extern "C" BattleFieldExt * THUMB_BRANCH_BattleField_Init(u16 heapID) {
-    // Dynamic allocation, as on W2. Until Jul 19 2026 there was a static
-    // buffer here: it served to work around a crash believed to be due to the W1
+    // Dynamic allocation, as on W2. There used to be a static
+    // buffer here: it worked around a crash believed to be due to the W1
     // battle-heap being too tight. The real cause was another — the ESDB gave GFL_HeapAllocate
     // as thumb while in W1 it is ARM, so EVERY allocation jumped in the
     // wrong way. Fixed the address, the allocation works like on W2.

@@ -1,8 +1,10 @@
 # W1 (IRAO) — BattleUpgrade symbol register (91)
 
-_Updated 2026-07-24. Authoritative reference = `PW2Code/ESDB.yml` (W2). Resolved symbols persisted in esdb/IRAO.yml + build_w1/ESDB.yml. **Status: 91/91 resolved, 0 open.**_
+_The W1 addresses of the BattleUpgrade battle hooks, with the W2 ones alongside for reference. They all
+live in `ESDB.yml` — this file is just the readable version, in case you want to check the work.
+**91/91 resolved, none open.**_
 
-## ✅ RESOLVED — 91/91 (in ESDB)
+## Resolved — 91/91
 
 | Name | W1 seg | W1 addr | W2 addr (ref) |
 |---|---|---|---|
