@@ -365,8 +365,7 @@ extern "C" void THUMB_BRANCH_SAFESTACK_AddExpAndEVs(ServerFlow * serverFlow, Bat
             }
 
 #if ADD_LEVEL_CAP
-            // W1: GetLvlCap() uses GAME_DATA = *(g_GameBeaconSys+4) (B2/W2 path) → garbage in White 1.
-            // RE Ghidra: BtlSetup_LoadGameData stores gameData in btlSetup+0x58 → we read it from there
+            // W1: gameData is taken from btlSetup+0x58, where BtlSetup_LoadGameData stores it
             // (raw offset from the W1 disasm, the C++ struct is W2 layout). Then var LVL_CAP_VAR (default 100).
             GameData* gd_lc = *(GameData**)((u8*)btlSetup + 0x58);
             u16* capPtr = EventWork_GetWkPtr(GameData_GetEventWork(gd_lc), LVL_CAP_VAR);
