@@ -110,7 +110,7 @@ live in `ESDB.yml` — this file is just the readable version, in case you want 
 
 ## Symbols ABSENT in W1 (not a gap: the function doesn't exist in the game)
 
-Two symbols used by `Patches/Base/QoLItems.cpp` exist in W2/B2 but **not in White 1**. Searched during the symbol hunt (15 searched → 13 found, these 2 proven non-existent) and declared under `AbsentSymbols` in `IRAO.yml`: their `THUMB_BRANCH_` hook is **skipped cleanly**, which is the correct outcome. QoLItems still works on W1 (infinite Repel verified in emulator).
+Two symbols used by `Patches/Base/QoLItems.cpp` exist in W2/B2 but **not in White 1**, so their `THUMB_BRANCH_` hook is skipped — which is the correct outcome, not a failure. QoLItems works on W1 regardless.
 
 - **`PassPower_ApplyExploringChance`** — odds multiplier for spawning shaking spots. Tied to **Pass Powers**, a **BW2** feature: BW1 doesn't have them, so the function doesn't exist.
 - **`PML_ItemGetType`** — item type/category accessor; in BW1 it doesn't exist as a standalone function.

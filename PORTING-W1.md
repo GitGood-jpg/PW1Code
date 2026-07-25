@@ -1,61 +1,41 @@
-# PW2Code on Pokémon White 1 (IRAO)
+# What's White-1-specific
 
-I ported PW2Code to White 1. Stock PW2Code only targets Black 2 / White 2, and White 1 is not a clean
-shift of White 2 — different arm9 hook sites (they're ARM in W1, Thumb in W2), a different battle overlay
-(ov93 instead of ov167), a different overlay/heap layout, different SDK globals. So it needs a PMC with
-W1 constants, plus a per-address map for the tables that moved.
+Notes on what had to change to get PW2Code running on White 1, in case you're looking at the sources and
+wondering why something is the way it is. You need a PMC built for W1; this repo is the patch side only.
 
-This folder has everything that's *mine*: the symbol database, the W1 targeting map, and the patch
-sources. It does not contain the ROM, anything extracted from the ROM, or the PMC — the PMC is yours, you
-already build it, you just need to bake the W1 values below into it.
+## Symbols
 
-## What's here
+`ESDB.yml` is the W1 symbol database — the W2 one with the addresses redone for White 1. Every battle hook
+resolves. The battle code lives in **ov93** (segment 0x5D) where W2 has it in ov167, so most of the battle
+symbols moved wholesale; the rest were matched function by function.
 
-- `ESDB.yml` — the W1 symbol database. It's the W2 one with the addresses corrected for White 1; every
-  battle hook resolves, nothing skipped. Battle overlay is ov93, BattleUpgrade hooks sit in segment 0x5D.
-  The last stragglers were the ones that aren't a clean shift of W2 — `DayCare_CalcNewLevel` for instance
-  lives in the BLZ-compressed ov21, and its address doesn't line up by a constant offset with W2, so I
-  pulled it out by decompressing the overlay and matching the call graph rather than trusting a delta.
-- `IRAO.yml` — the W1 targeting map. This is the important file: it's where all the PMC-side remaps live,
-  each one commented with why the value is what it is. More on it below.
-- `Patches/`, `Libraries/`, `Global/`, `Headers/`, `settings.h` — the patch sources. Same layout as a
-  normal PW2Code project.
-- `Assets/` — only my own files (the Fairy type chart and palette map, and the whitelist). No extracted
-  NARCs in here.
-- `W1_BATTLE_SYMBOLS_REGISTRY.md` — the 69 battle hooks with their W1 and W2 addresses side by side, in
-  case you want to check my work.
+Two symbols simply don't exist in White 1 — `PML_ItemGetType` and `PassPower_ApplyExploringChance`. Their
+hooks are skipped, which is the correct outcome, not a failure. `QoLItems.cpp` is shared with B2/W2 where
+they do exist.
 
-Not here, on purpose: the ROM, the extracted NARC assets, the generated `vfs/`/`base/`, and the PMC blob.
+`W1_BATTLE_SYMBOLS_REGISTRY.md` lists the battle symbols with their W1 and W2 addresses side by side, if
+you want to check the work.
 
-## Bringing the PMC to W1
+## ARM vs Thumb
 
-Everything the PMC needs is in `IRAO.yml`. Read the comments there rather than trusting a summary — I got
-bitten a few times and wrote down exactly why each value is what it is. The short version:
+Some arm9 functions are ARM on W1 where W2 has them in Thumb, so anything hooking or calling them has to
+enter in the right mode — a Thumb `bl` into an ARM function goes off the rails. This bit us on
+`GFL_HeapAllocate` in particular, where the wrong mode broke every allocation.
 
-- `Arm9HookRemap` — the four hook sites baked into the PMC, remapped W2 → W1: AdjustHeapStart, GFL_OvlLoad,
-  GFL_OvlEntryUnload, UncapOverlayMaximum. In W1 the arm9 hooks are ARM, so two of them (GFL_OvlLoad /
-  GFL_OvlEntryUnload, listed in `Arm9ArmBlxSites`) need a BLX into the Thumb handler instead of a BL.
-- `Arm9StubCallRemap` + `Arm9BytePatches` — the boot stub calls and the one byte patch at 0x02078D8F.
-  That byte patch forces sys_read_overlay_header down the FS-context fallback, otherwise the
-  overlay header comes back as garbage after the intro movie and the game crashes when BattleUpgrade loads
-  its overlay.
-- `OverlayBaseExtra: 0x4000` — W1 parks its FAT/FNT buffer right at maxOverlayBase, which is exactly where
-  the PMC overlay would mount, so it gets clobbered during FS operations. Bumping it 0x4000 up gets it
-  clear of the buffer and still under the heap region.
-- `PmcHeapPatches` — the heap. Apply these to the PMC.rpm *before* injection, not to the final ROM —
-  patching the ROM afterwards breaks the digest and you get a white screen. They move the heap window to
-  0x02220000..0x02380000 and skip the ARM7 clamp. Each patch has an `Expect` guard so it fails loudly if
-  your PMC layout differs from mine instead of writing to the wrong offset.
+## Source changes worth knowing
 
-There's also `HardcodedMap` (the vanilla move/ability/item event tables — mind the base/END pairs, if you
-remap a base without its END you get a runaway loop into the next table), `SafestackKeep` (the 24 hooks
-kept for the full engine), `StripNames: selective` (keeps the resident set inside W1's 141 KB DS heap),
-and `AbsentSymbols` (two symbols that genuinely don't exist in W1, so their hook is skipped on purpose).
+- **New-move animations.** W1's animation system isn't extended the way W2's is, so a move ID past the
+  vanilla range corrupts it. The patch passes a vanilla ID to the animation system and stashes the real
+  move ID separately, then redirects the archive load. See `MoveAnimLoadW1` in `BattleEngine.S`.
+- **Move effects are internalized.** They live in `Patches/BattleUpgrade/` with `dllName` set to `nullptr`
+  instead of being loaded as DLLs at runtime — the kernel's DLL loader corrupts memory when it loads one
+  mid-battle.
+- **Don't make BattleUpgrade resident.** Putting an arm9 patch (a `FULL_COPY_255`) inside the module makes
+  the PMC treat it as resident, which resolves its imports only once at boot; the Library modules reload at
+  different addresses and you get a stale pointer. There's a longer note about this at the end of
+  `BattleEngine.S`.
 
 ## Heap
 
-White 1's heap is smaller than White 2's, so there's less room for battle content. The engine and the
-standard feature set fit fine; piling a lot of new content (new moves, Mega, and the like) on top of
-everything can overrun it. The `PmcHeapPatches` in `IRAO.yml` open the heap up to the largest window W1
-allows, and the patch modules stay resident so the memory isn't re-fragmented between battles.
-
+White 1's heap is tighter than White 2's, so there's less room for battle content. The engine and the
+standard feature set fit fine; piling on a lot of new content on top of everything can overrun it.

@@ -19,12 +19,12 @@ Once it's set up you get the full feature set on White 1 — same as PW2Code, no
 
 - `ESDB.yml` — the W1 symbol database (91/91 battle hooks resolved, including 22 weather-ability handlers
   the build was silently skipping before).
-- `IRAO.yml` — the W1 PMC targeting map, every remap commented with why it's there.
 - `Patches`, `Libraries`, `Global`, `Headers`, `settings.h` — the patch sources.
 - `Assets` — the edited data for the new content.
-- `PORTING-W1.md` and `W1_BATTLE_SYMBOLS_REGISTRY.md` — the porting notes and the full symbol register.
+- `PORTING-W1.md` and `W1_BATTLE_SYMBOLS_REGISTRY.md` — what's W1-specific, and the symbol register.
 
-No ROM in here — bring your own White 1. Nothing from the game binary is distributed.
+This is the patch side only — you need a PMC built for W1 to load it. No ROM in here either: bring your
+own White 1, nothing from the game binary is distributed.
 
 ## Credits
 
